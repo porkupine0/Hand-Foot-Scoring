@@ -128,6 +128,19 @@ details.rules summary{cursor:pointer;font-weight:700}
 .rulegrid dt{color:var(--muted)} .rulegrid dd{margin:0;font-weight:700;text-align:right}
 .rulelist{font-size:14px;margin:10px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 
+/* how to play */
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tab{padding:9px 6px;border-radius:10px;font-size:15px}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.guide h3{font-size:16px;font-weight:800;color:var(--accent)}
+.guide section{display:flex;flex-direction:column;gap:6px}
+.guide p,.guide li{font-size:15px;line-height:1.55;max-width:65ch}
+.guide p{margin:0}
+.guide ul,.guide ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.rtable{display:grid;grid-template-columns:1fr auto;gap:5px 14px;font-size:15px;margin:0}
+.rtable dt{color:var(--ink)} .rtable dd{margin:0;font-weight:800;color:var(--accent);text-align:right}
+.example{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+
 /* stats */
 .hl{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .aw{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:2px}
@@ -193,7 +206,8 @@ const MELDS = [90, 120, 150, 180];
 const V = { clean:500, dirty:300, sevens:1500, red3:-500 };
 
 const blankSetup = () => ({ count:2, teams:[0,1,2].map(()=>({name:"", p:["",""]})), firstDealer:0 });
-let state = load() || { phase:"setup", setup:blankSetup(), teams:[], firstDealer:0, rounds:[] };
+let state = load() || { phase:"setup", setup:blankSetup(), teams:[], firstDealer:0, rounds:[], tab:"game" };
+if (!state.tab) state.tab = "game";
 let entry = null;
 let confirmKey = null, confirmTimer = null;
 
@@ -267,14 +281,67 @@ document.addEventListener("visibilitychange", keepAwake);
 function render(){
   const app = document.getElementById("app");
   const focusId = document.activeElement && document.activeElement.id;
-  app.innerHTML = state.phase === "setup" ? setupView() : playView();
+  app.innerHTML = state.tab === "guide" ? header() + guideView() : state.phase === "setup" ? setupView() : playView();
   if (focusId){ const el = document.getElementById(focusId); if (el) el.focus(); }
   keepAwake();
 }
 
 function header(extra=""){
   return `<div class="brand"><div><h1>Hand &amp; Foot</h1>
-    <div class="suits" aria-hidden="true"><span class="b">♠</span><span class="r">♥</span><span class="r">♦</span><span class="b">♣</span></div></div><div class="hx-hbtns">${hx.button()}${extra}</div></div>`;
+    <div class="suits" aria-hidden="true"><span class="b">♠</span><span class="r">♥</span><span class="r">♦</span><span class="b">♣</span></div></div><div class="hx-hbtns">${hx.button()}${extra}</div></div>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" id="tab-game" data-act="tab" data-v="game" aria-selected="${state.tab==="game"}">Game</button><button class="tab" role="tab" id="tab-guide" data-act="tab" data-v="guide" aria-selected="${state.tab==="guide"}">How to play</button></div>`;
+}
+
+function guideView(){
+  return `<div class="panel guide">
+    <section><h2>The idea</h2><p>Hand and Foot is a partnership rummy game played with several decks. You lay down cards of the same rank and grow them into 7-card books. Every player has two piles of cards, a hand and a foot. Your team can go out once both partners have played into their foot and you've finished the books you need.</p>
+      <p>Tables play Hand and Foot many different ways. Scoring here follows this app's house rules. Agree on anything else before you deal.</p></section>
+    <section><h3>What you need</h3><ul><li>4 players in two teams of 2, or 6 players in three teams. Seats alternate teams, so partners don't sit together.</li><li>Standard decks with jokers, shuffled together. Use one more deck than there are players: 5 decks for 4 players, 7 for 6.</li></ul></section>
+    <section><h3>1. The deal</h3><p>Each player gets two piles of 11 cards: the <b>hand</b>, which you pick up, and the <b>foot</b>, which stays face down until you've played your hand. The rest is the draw pile. Turn its top card face up to start the discard pile. The deal passes to the left each round.</p></section>
+    <section><h3>2. Your turn</h3>
+      <ol><li>Draw 2 cards from the draw pile.</li><li>Lay down cards if you can (see below).</li><li>Discard 1 card face up.</li></ol>
+      <p>Many tables also let you take the top 7 cards of the discard pile instead of drawing, if you can lay down its top card right away with two matching cards from your hand.</p></section>
+    <section><h3>3. Melds and books</h3>
+      <ul><li>A <b>meld</b> is 3 or more cards of the same rank. Partners share their melds and both add to them.</li>
+      <li>2s and jokers are <b>wild</b>. A meld always needs more natural cards than wild ones, and you can't meld wild cards on their own.</li>
+      <li>At 7 cards a meld becomes a <b>book</b>. A <b>clean</b> book has no wild cards. A <b>dirty</b> book has some.</li>
+      <li>3s can't be melded.</li></ul></section>
+    <section><h3>4. Opening meld</h3>
+      <p>Your team's first meld each round has to add up to a minimum, counting the card values below:</p>
+      <dl class="rtable">${MELDS.map((m,i) => `<dt>Round ${i+1}</dt><dd>${m}</dd>`).join("")}</dl></section>
+    <section><h3>5. Your foot</h3><p>When you play the last card of your hand, pick up your foot and keep going. If that last card was your discard, pick up your foot on your next turn.</p></section>
+    <section><h3>6. 3s</h3>
+      <ul><li><b>Black 3s</b> are good for discarding. Each one still in your hand or foot at the end costs 5.</li>
+      <li><b>Red 3s</b> are dangerous. If another team goes out while you're holding one, it costs 500. Discard them early.</li></ul></section>
+    <section><h3>7. Going out</h3><p>Your team can go out once it has at least <b>2 dirty books and 1 clean book</b> and <b>both partners are in their foot</b>. Then lay down or discard your last card. The round ends right away.</p></section>
+    <section><h3>8. Scoring</h3>
+      <dl class="rtable">
+        <dt>Jokers and 2s</dt><dd>50</dd><dt>Aces</dt><dd>20</dd><dt>10 through King</dt><dd>10</dd><dt>4 through 9</dt><dd>5</dd>
+        <dt>Each black 3 left in hand or foot</dt><dd>−5</dd>
+        <dt>Clean book</dt><dd>${fmt(V.clean)}</dd><dt>Dirty book</dt><dd>${fmt(V.dirty)}</dd><dt>Clean book of 7s</dt><dd>${fmt(V.sevens)}</dd>
+        <dt>Each red 3 held when another team goes out</dt><dd>−${fmt(-V.red3)}</dd>
+      </dl>
+      <p>Each team adds up every card in its books and melds, plus its book bonuses. Then it subtracts every card left in both partners' hands and feet. There's no bonus for going out.</p>
+      <div class="example"><span><b>Example:</b> 1 clean book and 2 dirty books is 500 + 600 = 1,100. Add 655 for the cards on the table and subtract 45 left in hand and foot: 1,710 for the round.</span></div></section>
+    <section><h3>9. Winning</h3><p>Play 4 rounds. The highest total wins, and ties stand.</p></section>
+    <section><h3>Strategy tips</h3>
+      <ul><li>Get into your foot early. Your team can't go out until both partners are there.</li>
+      <li>Clean books are worth more, so save wild cards for the books that need them.</li>
+      <li>When another team is close to going out, lay down what you can. Cards on the table count for you, and cards in your hand count against you.</li>
+      <li>Don't discard a rank that the next player's team is building.</li>
+      <li>Ditch red 3s as soon as you can.</li></ul></section>
+    <section><h3>Using this app</h3>
+      <ol><li>Pick 2 or 3 teams, enter names, and choose who deals first.</li>
+      <li>The Game tab shows each round's opening meld and what you need to go out.</li>
+      <li>When the round ends, tap Score round and tap who went out. Then for each team, enter its books, the points on the table, the points left in hand and foot, and any red 3s. The app shows each team's score as you go.</li>
+      <li>After 4 rounds, the highest total wins. Tap a round to fix a mistake.</li></ol></section>
+    <section><h3>Glossary</h3>
+      <ul><li><b>Meld:</b> 3 or more cards of the same rank laid down by a team.</li>
+      <li><b>Book:</b> a meld of 7 cards.</li>
+      <li><b>Clean book:</b> a book with no wild cards. Also called natural.</li>
+      <li><b>Dirty book:</b> a book with at least one wild card.</li>
+      <li><b>Foot:</b> each player's second pile of cards, played after the hand.</li></ul></section>
+  </div>`;
 }
 
 function rulesCard(){
@@ -484,6 +551,7 @@ document.addEventListener("click", e => {
   const act = b.dataset.act;
   switch(act){
     case "count": state.setup.count = Math.min(3, Math.max(2, state.setup.count + +b.dataset.d)); save(); render(); break;
+    case "tab": state.tab = b.dataset.v; save(); render(); window.scrollTo(0,0); break;
     case "start": {
       const su = state.setup;
       state.teams = su.teams.slice(0, su.count).map((t,i)=>({ name: t.name.trim() || `Team ${i+1}`, p: t.p.map((x,k)=> x.trim() || `Partner ${k+1}`) }));
